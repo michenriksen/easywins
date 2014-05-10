@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require 'easywins'
+
+class App
+  include Methadone::Main
+  include Methadone::CLILogging
+
+  main do |base_url|
+    begin
+      Paint.mode = 0 if options.include?('no-color')
+
+      target = Easywins::Target.new(base_url, {
+        :spoof   => options.include?('spoof'),
+        :timeout => options[:timeout].to_f,
+        :retries => options[:retries],
+        :verify  => options['no-verify'].nil?
+      })
+
+      not_found_codes = [404]
+
+      print "\n [*] Checking to see if the server is alive... "
+      if target.alive?
+        print Paint["yes, good.\n", :green]
+      else
+        print Paint["nope, exiting.\n", :red]
+        exit!
+      end
+
+      if !options.include?('no-redirect-check')
+        print " [*] Checking to see if the server redirects... "
+        if target.redirects?
+          print Paint["it does.\n", :yellow]
+          puts Paint[" [*] Changing base URL to #{target.base_url}", :yellow]
+        else
+          print Paint["nope.\n", :green]
+        end
+      end
+
+      if !options.include?('no-404-check')
+        print " [*] Checking to see if the server responds with 404... "
+        not_found_probe = target.request("/#{SecureRandom.urlsafe_base64}")
+        if not_found_probe.code == 404
+          print Paint["yes, good.\n", :green]
+        else
+          if not_found_probe.code == 200
+            print Paint["#{not_found_probe.code} #{not_found_probe.message}\n", :red]
+            puts Paint[" [*] The server responds with 200 OK. Be prepared for tons of false-positives!", :red]
+          else
+            print Paint["#{not_found_probe.code} #{not_found_probe.message}.\n", :yellow]
+            puts Paint[" [*] Treating #{not_found_probe.code} responses as Not Found.", :yellow]
+            not_found_codes << not_found_probe.code
+          end
+        end
+      end
+
+      puts " [*] Checking the server for #{Easywins::PATHS.count} interesting paths...\n\n"
+
+      thread_pool  = Thread.pool(options[:threads].to_i)
+      column_width = Easywins::PATHS.max { |a, b| a.length <=> b.length }.length + target.base_url.length
+
+      Easywins::PATHS.shuffle.each do |path|
+        thread_pool.process do
+          sleep Random.rand(10) if options.include?('sleep')
+          begin
+            url    = "#{target.base_url}#{path}"
+            result = target.request(path, options.include?('get'))
+
+            if result.code == 200
+              puts Paint["     #{url.ljust(column_width)} #{result.code} #{result.message}", :green]
+            else
+              if !not_found_codes.include?(result.code)
+                puts Paint["     #{url.ljust(column_width)} #{result.code} #{result.message}", :yellow]
+              end
+            end
+          rescue => e
+            puts Paint["     #{url.ljust(column_width)} FAILED: #{e.class}", :red]
+          end
+        end
+      end
+
+      thread_pool.shutdown
+
+      puts Paint["\n [*] Done!\n", :green]
+
+    rescue Exception => e
+      if e.is_a?(OptionParser::ParseError) || e.is_a?(ArgumentError)
+        help_now!
+      elsif e.is_a?(Interrupt)
+        puts Paint["\n\n [*] Interrupted.\n", :yellow]
+      elsif e.is_a?(OpenSSL::SSL::SSLError)
+        puts Paint["\n\n [*] There's a problem with the server's SSL certificate. Use the --no-verify option if you know what you're doing.\n", :red]
+      else
+        puts Paint["\n\n [*] WARP CORE BREACH!", :red]
+        puts Paint["     #{e.class}: #{e.message}\n", :red]
+      end
+    end
+  end
+
+  options['threads']   = 3
+  options['timeout']   = Easywins::HttpClient::DEFAULT_TIMEOUT
+  options['retries']   = Easywins::HttpClient::DEFAULT_RETRIES
+
+  on('-g', '--get', "Use GET requests instead of HEAD (slower but stealthier)")
+  on('-s', '--sleep', "Sleep between 0 and 10 seconds before each request")
+  on('-x', '--spoof', "Spoof X-Forwarded-For header with random IP addresses")
+  on('-t', '--timeout SECONDS', "Request timeout in seconds")
+  on('-r', '--retries RETRIES', "Number of retries on failed requests")
+  on('-t THREADS', '--threads', "Number of threads to use")
+  on('--no-verify', "Don't do SSL verification")
+  on('--no-redirect-check', "Don't check if server redirects")
+  on('--no-404-check', "Don't check if server responds with 404")
+  on('--no-color', "Don't colorize output")
+
+  arg :base_url
+
+  description "Probe a web server for common files and endpoints that are useful for gathering information or gaining a foothold."
+  version Easywins::VERSION
+
+  go!
+end
