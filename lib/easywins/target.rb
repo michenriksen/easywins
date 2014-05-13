@@ -48,9 +48,9 @@ module Easywins
       raise InvalidBaseUrlError.new("#{url} is an invalid URL") unless valid_url?(url)
       normalized_url = url.dup
       use_ssl = (normalized_url =~ /^https/) || (normalized_url =~ /:443\b/)
-      ends_with_slash = normalized_url =~ /\/$/
 
-      normalized_url.chop! if ends_with_slash
+      normalized_url.chop! if normalized_url.end_with?('?')
+      normalized_url.chop! if normalized_url.end_with?('/')
       normalized_url.gsub!(/^https?:\/\//i, '')
 
       "http#{'s' if use_ssl}://#{normalized_url}".downcase

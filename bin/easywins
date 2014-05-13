@@ -20,7 +20,21 @@ class App
 
       not_found_codes = [404]
 
-      print "\n [*] Checking to see if the server is alive... "
+      print "\n"
+
+      if !Easywins::ListManager.file_exists? || options.include?('update')
+        print " [*] Downloading latest list of paths from GitHub... "
+        begin
+          Easywins::ListManager.update_file!
+          print Paint["done.\n", :green]
+        rescue Easywins::ListManager::UpdateError => e
+          print Paint["FAILED!\n", :red]
+          puts " [*] e.message; exiting."
+          exit!
+        end
+      end
+
+      print " [*] Checking to see if the server is alive... "
       if target.alive?
         print Paint["yes, good.\n", :green]
       else
@@ -55,12 +69,13 @@ class App
         end
       end
 
-      puts " [*] Checking the server for #{Easywins::PATHS.count} interesting paths...\n\n"
-
+      list         = Easywins::ListManager.get_list
       thread_pool  = Thread.pool(options[:threads].to_i)
-      column_width = Easywins::PATHS.max { |a, b| a.length <=> b.length }.length + target.base_url.length
+      column_width = list.max { |a, b| a.length <=> b.length }.length + target.base_url.length
 
-      Easywins::PATHS.shuffle.each do |path|
+      puts " [*] Checking the server for #{list.count} interesting paths...\n\n"
+
+      list.shuffle.each do |path|
         thread_pool.process do
           sleep Random.rand(10) if options.include?('sleep')
           begin
@@ -105,6 +120,7 @@ class App
   on('-g', '--get', "Use GET requests instead of HEAD (slower but stealthier)")
   on('-s', '--sleep', "Sleep between 0 and 10 seconds before each request")
   on('-x', '--spoof', "Spoof X-Forwarded-For header with random IP addresses")
+  on('-u', '--update', "Update list of paths from GitHub")
   on('-t', '--timeout SECONDS', "Request timeout in seconds")
   on('-r', '--retries RETRIES', "Number of retries on failed requests")
   on('-t THREADS', '--threads', "Number of threads to use")

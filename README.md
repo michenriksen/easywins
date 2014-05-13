@@ -19,13 +19,14 @@ list of common *easy win* paths: https://github.com/pwnwiki/webappurls
 
     Probe a web server for common files and endpoints that are useful for gathering information or gaining a foothold.
 
-    v0.1.0
+    v0.2.1
 
     Options:
         -h, --help                       Show command line help
         -g, --get                        Use GET requests instead of HEAD (slower but stealthier)
         -s, --sleep                      Sleep between 0 and 10 seconds before each request
         -x, --spoof                      Spoof X-Forwarded-For header with random IP addresses
+        -u, --update                     Update list of paths from GitHub
             --timeout SECONDS            Request timeout in seconds
                                          (default: 2.5)
         -r, --retries RETRIES            Number of retries on failed requests
