@@ -14,7 +14,7 @@ class App
       target = Easywins::Target.new(base_url, {
         :spoof   => options.include?('spoof'),
         :timeout => options[:timeout].to_f,
-        :retries => options[:retries],
+        :retries => options[:retries].to_i,
         :verify  => options['no-verify'].nil?
       })
 
