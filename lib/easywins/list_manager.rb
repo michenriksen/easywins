@@ -1,7 +1,7 @@
 module Easywins
   class ListManager
     LIST_LOCATION = "#{File.dirname(__FILE__)}/../../paths.txt"
-    DOWNLOAD_URL  = 'https://raw.githubusercontent.com/pwnwiki/webappurls/master/webappurls.txt'
+    DOWNLOAD_URL  = 'https://raw.githubusercontent.com/pwnwiki/webappurls/gh-pages/webappurls.txt'
 
     class UpdateError < StandardError; end
 
