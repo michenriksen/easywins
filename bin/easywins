@@ -29,7 +29,7 @@ class App
           print Paint["done.\n", :green]
         rescue Easywins::ListManager::UpdateError => e
           print Paint["FAILED!\n", :red]
-          puts " [*] e.message; exiting."
+          puts " [*] #{e.message}; exiting."
           exit!
         end
       end
